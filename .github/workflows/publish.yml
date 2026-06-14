@@ -1,0 +1,111 @@
+name: Publish to PyPI
+
+# Triggered by pushing a ``v*`` tag (e.g. ``v0.1.0``, ``v0.2.0a1``).
+# Builds wheel + sdist, then uploads via PyPI Trusted Publishing (OIDC)
+# — no long-lived API token required.
+#
+# For TestPyPI rehearsal cycles use the separate
+# ``publish-testpypi.yml`` (manual workflow_dispatch) instead — that
+# avoids burning a real PyPI release on each iteration.
+#
+# Prerequisite (one-time, maintainer):
+#   PyPI project "blackbull-session" has a Trusted Publisher entry
+#   naming ``TOKUJI/blackbull-session`` + workflow ``publish.yml``.
+#   If the configured workflow filename differs, this file must be
+#   renamed to match — PyPI's OIDC token exchange will reject any
+#   other filename.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10   # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405   # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build
+
+      - name: Build wheel + sdist
+        run: python -m build
+
+      - name: List build artefacts
+        run: ls -la dist/
+
+      - name: Upload artefacts for the publish job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a   # v7.0.1
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  publish:
+    name: Publish to PyPI via OIDC
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: pypi
+      url: https://pypi.org/project/blackbull-session/
+    permissions:
+      id-token: write
+    steps:
+      - name: Download artefacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c   # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        # See the BlackBull publish.yml for why this action is pinned by
+        # version tag rather than commit SHA (Docker image tag layout).
+        uses: pypa/gh-action-pypi-publish@v1.14.0
+
+  release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10   # v6.0.3
+
+      - name: Extract changelog section for this tag
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { in_section=1; next }
+            in_section && /^## \[/ { exit }
+            in_section
+          ' CHANGELOG.md > /tmp/notes.md
+          echo "--- extracted notes (first 40 lines) ---"
+          head -40 /tmp/notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file /tmp/notes.md \
+            --verify-tag
