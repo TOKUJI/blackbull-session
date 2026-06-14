@@ -1,0 +1,66 @@
+[project]
+name = "blackbull-session"
+# ZeroVer (0.MINOR.PATCH).  Alpha suffix (aN) used during the TestPyPI
+# rehearsal cycle; first stable cut will be 0.1.0.
+version = "0.1.0a1"
+description = "Signed-cookie session extension for the BlackBull ASGI framework."
+readme = "README.md"
+requires-python = ">=3.11"
+
+authors = [
+    { name = "TOKUJI" }
+]
+
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
+keywords = ["asgi", "blackbull", "session", "cookie", "middleware"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Internet :: WWW/HTTP :: Session",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
+
+# The extension uses `blackbull.middleware.as_middleware` and
+# `blackbull.asgi.ASGIEvent`, plus the `app.extensions` dict and the
+# `init_app(app)` convention.  `app.extensions` landed in BlackBull 0.36.0.
+dependencies = [
+    "blackbull >= 0.36.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/TOKUJI/blackbull-session"
+Repository = "https://github.com/TOKUJI/blackbull-session"
+Changelog = "https://github.com/TOKUJI/blackbull-session/blob/master/CHANGELOG.md"
+Issues = "https://github.com/TOKUJI/blackbull-session/issues"
+"BlackBull framework" = "https://github.com/TOKUJI/BlackBull"
+
+[project.optional-dependencies]
+testing = [
+    "pytest",
+    "pytest-asyncio",
+    "blackbull[testing] >= 0.36.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# PEP 561 — distribute inline type hints to downstream type-checkers.
+blackbull_session = ["py.typed"]
+
+[build-system]
+requires = ["setuptools >= 64", "wheel"]
+build-backend = "setuptools.build_meta"
